@@ -4,34 +4,31 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import or_, and_
 from dotenv import load_dotenv
 
-# 1. Carrega as variáveis de ambiente
+# Carrega as variáveis de ambiente do arquivo .env (rodando local)
 load_dotenv()
 
-# 2. INICIALIZA O FLASK CORRETAMENTE (Isso tinha sumido!)
+# Inicializa o Flask corretamente (Corrigido: removido o 'app' fantasma do import acima)
 app = Flask(__name__)
 app.secret_key = "segredo123"
 
-# 3. Pega a URL do banco de dados da Railway
+# Pega a URL do banco de dados configurada na Railway
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
+# Se a variável estiver vazia, impede o app de subir com erro quebrado
 if not DATABASE_URL:
     raise ValueError("A variável de ambiente DATABASE_URL não foi configurada na Railway!")
 
-# Corrige o prefixo exigido pelo SQLAlchemy
+# Corrige o prefixo padrão (essencial para o SQLAlchemy se conectar ao PostgreSQL)
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
-# 4. Aplica as configurações no app do Flask
+# Configura as propriedades do SQLAlchemy no Flask
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# 5. Inicializa o ORM com o app configurado
+# Inicializa o ORM com o app configurado de verdade
 db = SQLAlchemy(app)
 
-# -----------------------
-# MODELOS (Tabelas do Banco de Dados)
-# -----------------------
-# O resto do seu código (as classes Usuario, Mensagem e as rotas) permanece idêntico...
 # -----------------------
 # MODELOS (Tabelas do Banco de Dados)
 # -----------------------
@@ -49,7 +46,7 @@ class Mensagem(db.Model):
     destinatario_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False)
     mensagem = db.Column(db.Text, nullable=False)
 
-# Cria as tabelas na Railway caso elas ainda não existam
+# Cria as tabelas na Railway automaticamente caso elas ainda não existam
 with app.app_context():
     db.create_all()
 
@@ -74,7 +71,7 @@ def login():
         # Se não existe, cria um novo
         user = Usuario(nome=nome, senha=senha)
         db.session.add(user)
-        db.session.commit() # O ID é gerado automaticamente aqui
+        db.session.commit() 
     else:
         if user.senha != senha:
             return "Senha incorreta"
@@ -111,7 +108,7 @@ def usuarios():
     # Retorna todos os usuários exceto o logado
     lista_usuarios = Usuario.query.filter(Usuario.id != session["user_id"]).all()
     
-    # Mantém o formato original de lista de tuplas [id, nome] que o fetchall retornava
+    # Mantém o formato original de lista de tuplas [id, nome]
     dados = [[u.id, u.nome] for u in lista_usuarios]
     return jsonify(dados)
 
@@ -139,7 +136,10 @@ def enviar():
 
     return jsonify({"status": "ok"})
 
-# ----------------
+# -----------------------
+# CONFIGURAÇÃO DE PORTA COMPATÍVEL
+# -----------------------
 if __name__ == "__main__":
-    # O Gunicorn vai ignorar essa parte, mas é bom deixar assim:
-    app.run()
+    # Garante compatibilidade de portas dinâmica se você testar localmente
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
