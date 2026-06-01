@@ -4,24 +4,34 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import or_, and_
 from dotenv import load_dotenv
 
+# 1. Carrega as variáveis de ambiente
 load_dotenv()
 
+# 2. INICIALIZA O FLASK CORRETAMENTE (Isso tinha sumido!)
 app = Flask(__name__)
 app.secret_key = "segredo123"
 
-# Configuração da URL do banco da Railway
-DATABASE_URL = os.getenv("DATABASE_URL", "postgres-production-81533.up.railway.app")
+# 3. Pega a URL do banco de dados da Railway
+DATABASE_URL = os.environ.get("DATABASE_URL")
 
-# Correção essencial: SQLAlchemy exige "postgresql://" em vez de "postgres://"
+if not DATABASE_URL:
+    raise ValueError("A variável de ambiente DATABASE_URL não foi configurada na Railway!")
+
+# Corrige o prefixo exigido pelo SQLAlchemy
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
+# 4. Aplica as configurações no app do Flask
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# Inicializa o ORM
+# 5. Inicializa o ORM com o app configurado
 db = SQLAlchemy(app)
 
+# -----------------------
+# MODELOS (Tabelas do Banco de Dados)
+# -----------------------
+# O resto do seu código (as classes Usuario, Mensagem e as rotas) permanece idêntico...
 # -----------------------
 # MODELOS (Tabelas do Banco de Dados)
 # -----------------------
