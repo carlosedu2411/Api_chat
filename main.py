@@ -130,3 +130,6 @@ def enviar():
     return jsonify({"status": "ok"})
 
 # ----------------
+if __name__ == "__main__":
+    # O Gunicorn vai ignorar essa parte, mas é bom deixar assim:
+    app.run()
