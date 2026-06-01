@@ -10,51 +10,105 @@ app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
 
-// Home
 app.get('/', (req, res) => {
   res.json({
-    status: 'online',
-    service: 'chat-api'
+    status: 'online'
   });
 });
 
-// Buscar mensagens
-app.get('/messages', async (req, res) => {
+// =========================
+// BUSCAR USUÁRIO
+// =========================
+
+app.get('/buscar_usuario/:nome', async (req, res) => {
   try {
-    const messages = await prisma.message.findMany({
+
+    const usuario = await prisma.user.findFirst({
+      where: {
+        username: req.params.nome
+      }
+    });
+
+    if (!usuario) {
+      return res.json(null);
+    }
+
+    res.json({
+      id: usuario.id,
+      nome: usuario.username
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      error: error.message
+    });
+  }
+});
+
+// =========================
+// ENVIAR MENSAGEM
+// =========================
+
+app.post('/enviar', async (req, res) => {
+  try {
+
+    const {
+      remetente,
+      destinatario,
+      texto
+    } = req.body;
+
+    const mensagem = await prisma.message.create({
+      data: {
+        mensagem: texto,
+        remetenteId: Number(remetente),
+        destinatarioId: Number(destinatario)
+      }
+    });
+
+    res.status(201).json(mensagem);
+
+  } catch (error) {
+    res.status(500).json({
+      error: error.message
+    });
+  }
+});
+
+// =========================
+// CARREGAR MENSAGENS
+// =========================
+
+app.get('/mensagens/:id', async (req, res) => {
+  try {
+
+    const usuarioAtual = Number(req.query.usuario);
+    const contato = Number(req.params.id);
+
+    const mensagens = await prisma.message.findMany({
+      where: {
+        OR: [
+          {
+            remetenteId: usuarioAtual,
+            destinatarioId: contato
+          },
+          {
+            remetenteId: contato,
+            destinatarioId: usuarioAtual
+          }
+        ]
+      },
       orderBy: {
         createdAt: 'asc'
       }
     });
 
-    res.json(messages);
-  } catch (error) {
-    res.status(500).json({
-      error: error.message
-    });
-  }
-});
-
-// Criar mensagem
-app.post('/messages', async (req, res) => {
-  try {
-    const { userId, username, content } = req.body;
-
-    if (!userId || !username || !content) {
-      return res.status(400).json({
-        error: 'Dados obrigatórios ausentes'
-      });
-    }
-
-    const message = await prisma.message.create({
-      data: {
-        userId,
-        username,
-        content
-      }
-    });
-
-    res.status(201).json(message);
+    res.json(
+      mensagens.map(m => ({
+        remetente: m.remetenteId,
+        mensagem: m.mensagem
+      }))
+    );
 
   } catch (error) {
     res.status(500).json({
@@ -63,18 +117,45 @@ app.post('/messages', async (req, res) => {
   }
 });
 
-// Deletar mensagem
-app.delete('/messages/:id', async (req, res) => {
+// =========================
+// LISTAR CONVERSAS
+// =========================
+
+app.get('/conversas/:id', async (req, res) => {
   try {
-    await prisma.message.delete({
+
+    const usuarioId = Number(req.params.id);
+
+    const mensagens = await prisma.message.findMany({
       where: {
-        id: Number(req.params.id)
+        OR: [
+          { remetenteId: usuarioId },
+          { destinatarioId: usuarioId }
+        ]
+      },
+      include: {
+        remetente: true,
+        destinatario: true
       }
     });
 
-    res.json({
-      message: 'Mensagem removida'
+    const contatos = new Map();
+
+    mensagens.forEach(m => {
+
+      const outro =
+        m.remetenteId === usuarioId
+          ? m.destinatario
+          : m.remetente;
+
+      contatos.set(outro.id, {
+        id: outro.id,
+        nome: outro.username
+      });
+
     });
+
+    res.json([...contatos.values()]);
 
   } catch (error) {
     res.status(500).json({

@@ -6,19 +6,23 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
-
 model User {
-  id        Int       @id @default(autoincrement())
-  username  String    @unique
+  id        Int      @id @default(autoincrement())
+  username  String   @unique
   password  String
-  messages  Message[]
+
+  enviadas  Message[] @relation("Enviadas")
+  recebidas Message[] @relation("Recebidas")
 }
 
 model Message {
-  id        Int      @id @default(autoincrement())
-  content   String
-  createdAt DateTime @default(now())
+  id             Int      @id @default(autoincrement())
+  mensagem       String
+  createdAt      DateTime @default(now())
 
-  userId    Int
-  user      User @relation(fields: [userId], references: [id])
+  remetenteId    Int
+  destinatarioId Int
+
+  remetente User @relation("Enviadas", fields:[remetenteId], references:[id])
+  destinatario User @relation("Recebidas", fields:[destinatarioId], references:[id])
 }
