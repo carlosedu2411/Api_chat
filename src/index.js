@@ -2,7 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import prisma from './prisma.js';
-
+import bcrypt from 'bcrypt';
 const app = express();
 
 app.use(cors());
@@ -14,6 +14,96 @@ app.get('/', (req, res) => {
   res.json({
     status: 'online'
   });
+});
+// =========================
+// CADASTRO
+// =========================
+
+app.post('/register', async (req, res) => {
+  try {
+
+    const { username, password } = req.body;
+
+    const existe = await prisma.user.findUnique({
+      where: {
+        username
+      }
+    });
+
+    if (existe) {
+      return res.status(400).json({
+        error: 'Usuário já existe'
+      });
+    }
+
+    const senhaHash = await bcrypt.hash(password, 10);
+
+    const usuario = await prisma.user.create({
+      data: {
+        username,
+        password: senhaHash
+      }
+    });
+
+    res.status(201).json({
+      id: usuario.id,
+      username: usuario.username
+    });
+
+  } catch (error) {
+
+    res.status(500).json({
+      error: error.message
+    });
+
+  }
+});
+
+// =========================
+// LOGIN
+// =========================
+
+app.post('/login', async (req, res) => {
+  try {
+
+    const { username, password } = req.body;
+
+    const usuario = await prisma.user.findUnique({
+      where: {
+        username
+      }
+    });
+
+    if (!usuario) {
+      return res.status(400).json({
+        error: 'Usuário não encontrado'
+      });
+    }
+
+    const senhaCorreta =
+      await bcrypt.compare(
+        password,
+        usuario.password
+      );
+
+    if (!senhaCorreta) {
+      return res.status(400).json({
+        error: 'Senha incorreta'
+      });
+    }
+
+    res.json({
+      id: usuario.id,
+      username: usuario.username
+    });
+
+  } catch (error) {
+
+    res.status(500).json({
+      error: error.message
+    });
+
+  }
 });
 
 // =========================
